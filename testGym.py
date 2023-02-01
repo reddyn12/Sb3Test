@@ -24,7 +24,7 @@ for i in range(100):
     while not done:
         env.render()
         action, _ = model.predict(obs)
-        print(action)
+        # print(action)
         obs, reward, done, info = env.step(action)
     cnt = time.time() - s  
     times.append(cnt)
