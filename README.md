@@ -1,1 +1,3 @@
 # SB3 Discrete Test With Gym Env
+
+This ChessSB3 test is with RL from scratch, bot has to learn which moves are legal first before being ale to formulate srategies. Once this versoin works, going to see how I can finnese ChessGPT as starting knowledge base and then devoloping new starts base on that. ChessGPT plays a game out in its generation of text, anf cuart=ly states the winner ofthe game. Need to leverage those out come tokes in reward.. I think 
