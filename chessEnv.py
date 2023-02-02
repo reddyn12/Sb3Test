@@ -1,3 +1,4 @@
+import enum
 import gym
 from gym import spaces
 import chess
@@ -15,9 +16,10 @@ import requests
 
 
 class HTMLServer:
-    def __init__(self, port=8000):
+    def __init__(self, port=8000, board=chess.Board()):
+        self.board = board
         self.port = port
-        self.html_content = self.strBuild(chess.svg.board(chess.Board()))
+        self.html_content = self.strBuild(chess.svg.board(board))
         self.httpd = None
         self.driver = None
     def strBuild(self, s):
@@ -64,9 +66,10 @@ class HTMLServer:
         self.driver.quit()
         self.driver.stop_client()
         self.httpd.shutdown()
-    def update(self, new_html_content):
-        self.httpd.html_content = self.strBuild(new_html_content)
-        self.driver.refresh()
+    def update(self, board):
+        self.board = board
+        self.httpd.html_content = self.strBuild(chess.svg.board(board))
+        # self.driver.refresh()
 
 
 
@@ -77,43 +80,6 @@ def display_board(board):
     print("Chess board displayed!")
 
 
-# Example usage:
-board = chess.Board()
-board.push_san("b4")
-# display_board(board)
-board_svg = chess.svg.board(board=board)
-html_server = HTMLServer()
-html_server.start()
-time.sleep(1)
-
-html_server.update(board_svg)
-time.sleep(2)
-board.push_san("e6")
-board_svg = chess.svg.board(board=board)
-html_server.update(board_svg)
-time.sleep(2)
-
-board.push_san("c3")
-board_svg = chess.svg.board(board=board)
-html_server.update(board_svg)
-time.sleep(2)
-
-board.push_san("b6")
-board_svg = chess.svg.board(board=board)
-html_server.update(board_svg)
-time.sleep(2)
-
-board.push_san("c4")
-board_svg = chess.svg.board(board=board)
-html_server.update(board_svg)
-time.sleep(2)
-
-board.push_san("a5")
-board_svg = chess.svg.board(board=board)
-html_server.update(board_svg)
-time.sleep(2)
-html_server.stop()
-
 # b =  chess.Board()
 # for i in (b.generate_legal_moves()):
 #     print(i)
@@ -121,6 +87,7 @@ html_server.stop()
 # time.sleep(100)
 def makeActions():
     ans = []
+    ansDict = {}
     tiles = []
     for i in ["a","b","c","d","e","f","g","h"]:
         for j in ["1","2","3","4","5","6","7","8"]:
@@ -130,23 +97,24 @@ def makeActions():
         for j in tiles:
             if i!=j:
                 ans.append(i+j)
+    for i,j in enumerate(ans):
+        ansDict[j] = i
     
-
-    return ans
+    return ans, ansDict
 class ChessEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
     def __init__(self, fen=None):
         super(ChessEnv, self).__init__()
         self.board = chess.Board(fen=fen) if fen else chess.Board()
-        self.html_server = HTMLServer()
+        self.html_server = HTMLServer(board=self.board)
         self.html_server.start()
         
         pass
 
     def reset(self, fen=None):
         self.board = chess.Board(fen=fen) if fen else chess.Board()
-        self.html_server.update(chess.svg.board(board=board))
+        self.html_server.update(chess.svg.board(board=self.board))
         pass
     # chess.svg??
     def render(self):
@@ -156,15 +124,58 @@ class ChessEnv(gym.Env):
     # push uci for now for discrete action space... need to thnik if I want pgn or uci for final pipeline
     def step(self, action):
         obs = None
-        reward = None
-        done = None
-        info = None
+        #low reward for time, trying to be on the attack
+        reward = 10
+        done = False
+        info = {}
+
+
+        # add stockfish code for its best move
+
+        if self.board.is_checkmate():
+            reward = -10000
+            done = True
+            obs = fenArr(self.board.fen())
+            return obs, reward, done, info
         #not a valid moves
         try:
             self.board.push_uci(action)
         except Exception as e:
             done = True
             reward = -10000
+            return obs, reward, done, info
+
+        if self.board.is_checkmate():
+            reward = 10000
+            done = True
+        elif self.board.is_check():
+            reward = 5000
+        else:
+            temp = self.board.pop()
+            if self.board.is_capture(temp):
+                reward = 1000
+            self.board.push_uci(action)
+        obs = fenArr(self.board.fen())
+
+
+
+        #thats how cartpole does it......
+        info = {}
 
         
         return obs, reward, done, info
+pieces = {"p":1, "r":2, "b":3, "n":4, "q":5, "k":6, "P":7, "R":8, "B":9, "N":10, "Q":11, "K":12} 
+def fenArr(fen:str):
+    lines = fen.split(" ")
+    lines = lines[0]
+    lines = lines.split("/")
+    ans = []
+    
+    for i in lines:
+        for c in i:
+            if c in ["1","2","3","4","5","6","7","8"]:
+                for x in range(int(c)):
+                    ans.append(0)
+            else:
+                ans.append(pieces[c])
+    return ans

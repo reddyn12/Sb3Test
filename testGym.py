@@ -15,7 +15,7 @@ model = sb3.PPO("MlpPolicy", env, verbose=1)
 # .237 - 1000
 # 1.250 - 10000
 # 3.488 - 100000
-model.learn(100000)
+model.learn(1000)
 times = []
 for i in range(100):
     obs = env.reset()
@@ -26,6 +26,7 @@ for i in range(100):
         action, _ = model.predict(obs)
         # print(action)
         obs, reward, done, info = env.step(action)
+        # print(obs)
     cnt = time.time() - s  
     times.append(cnt)
 env.close()
