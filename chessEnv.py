@@ -68,7 +68,7 @@ class HTMLServer:
         self.httpd.shutdown()
     def update(self, board):
         self.board = board
-        self.httpd.html_content = self.strBuild(chess.svg.board(board))
+        self.httpd.html_content = self.strBuild(chess.svg.board(board)) #._repr_svg() works too
         # self.driver.refresh()
 
 
