@@ -10,7 +10,8 @@ import chessEnv
 
 
 env = chessEnv.ChessEnv()
-env.reset()
+t = env.reset()
+print(t)
 tmp_path = "logs"
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 model = sb3.PPO("MlpPolicy", env, verbose=1)

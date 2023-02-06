@@ -23,7 +23,7 @@ model.set_logger(new_logger)
 # .237 - 1000
 # 1.250 - 10000
 # 3.488 - 100000
-model.learn(100000)
+model.learn(100000, progress_bar=True)
 times = []
 for i in range(100):
     obs = env.reset()

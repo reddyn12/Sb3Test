@@ -86,7 +86,7 @@ def display_board(board):
 #     print(i)
 # print(chess.svg.board(b, size=350))
 # time.sleep(100)
-
+#25% of oald actions - 4000ish to 1000ish
 def makeActions():
     moves = []
     for i in range(-2,3):
@@ -118,7 +118,7 @@ def makeActions():
                         pass
                     else:
                         moves.append((i,j))
-    print(len(moves))
+    # print(len(moves))
     f = ["a","b","c","d","e","f","g","h"]
     f1 = {"a":1,"b":2,"c":3,"d":4,"e":5,"f":6,"g":7,"h":8}
     f2 = {1:"a",2:"b",3:"c",4:"d",5:"e",6:"f",7:"g",8:"h"}
@@ -172,7 +172,6 @@ class ChessEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
     def __init__(self, fen=None, white=True):
-        super(ChessEnv, self).__init__()
         self.board = chess.Board(fen=fen) if fen else chess.Board()
         self.html_server = HTMLServer(board=self.board)
         self.html_server.start()
@@ -196,13 +195,14 @@ class ChessEnv(gym.Env):
         self.stepcnt=0
         self.stockfishThink = 10
         self.stepsBeyondTerm = None
+        self.state = None
 
     def reset(self, fen=None):
         self.board = chess.Board(fen=fen) if fen else chess.Board()
         self.html_server.update(chess.svg.board(board=self.board))
         self.stepcnt=0
-        return fenArr(self.board.fen())
-        
+        self.state = fenArr(self.board.fen())
+        return self.state
     # chess.svg??
     def render(self):
         self.html_server.driver.refresh()
@@ -212,7 +212,7 @@ class ChessEnv(gym.Env):
     def step(self, action):
         self.stepcnt = self.stepcnt +1
         #print("new step",self.stepcnt)
-        obs = fenArr(self.board.fen())
+        self.state = fenArr(self.board.fen())
         done = False
         info = {}
         reward = 1
@@ -226,13 +226,13 @@ class ChessEnv(gym.Env):
             if self.board.is_checkmate():
                 reward = -10000
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             elif self.board.is_check():
                 reward = -5000
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             
             m = chess.Move.from_uci(self.moves[action])
             # mm=self.board.legal_moves.__iter__()
@@ -244,17 +244,17 @@ class ChessEnv(gym.Env):
             else:
                 done = True
                 reward = -100000
-                return obs, reward, done, info
+                return self.state, reward, done, info
             if self.board.is_checkmate():
                 reward = 10000+reward
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             elif self.board.is_check():
                 reward = 5000+reward
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             else:
                 temp = self.board.pop()
                 if self.board.is_capture(temp):
@@ -266,13 +266,13 @@ class ChessEnv(gym.Env):
             if self.board.is_checkmate():
                 reward = -10000
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             elif self.board.is_check():
                 reward = -5000
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             
             
             m = chess.Move.from_uci(self.moves[action])
@@ -283,18 +283,18 @@ class ChessEnv(gym.Env):
             else:
                 done = True
                 reward = -100000
-                return obs, reward, done, info
+                return self.state, reward, done, info
             
             if self.board.is_checkmate():
                 reward = 10000+reward
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             elif self.board.is_check():
                 reward = 5000+reward
                 done = True
-                obs = fenArr(self.board.fen())
-                return obs, reward, done, info
+                self.state = fenArr(self.board.fen())
+                return self.state, reward, done, info
             else:
                 temp = self.board.pop()
                 if self.board.is_capture(temp):
@@ -302,8 +302,8 @@ class ChessEnv(gym.Env):
                 self.board.push(temp)
             
             self.board.push_san(self.stockfishMove())
-        obs=fenArr(self.board.fen())
-        return obs, reward, done, info
+        self.state=fenArr(self.board.fen())
+        return self.state, reward, done, info
             
     def stockfishMove(self):
         self.stockfish.set_fen_position(self.board.fen())
