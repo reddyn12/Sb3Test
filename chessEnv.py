@@ -170,7 +170,7 @@ def makeActionsOLD():
     return np.array(ans), ansDict
 class ChessEnv(gym.Env):
 
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render.modes": ["human"],"video.frames_per_second": 50}
     def __init__(self, fen=None, white=True):
         self.board = chess.Board(fen=fen) if fen else chess.Board()
         self.html_server = HTMLServer(board=self.board)
@@ -367,4 +367,4 @@ def fenArr(fen:str):
                 ans.append(pieces[c])
     # print(ans)
     # print(len(ans))
-    return np.array(ans)
+    return np.array(ans).astype(int)

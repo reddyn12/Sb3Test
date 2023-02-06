@@ -9,22 +9,25 @@ import time
 import chessEnv
 
 
-env = chessEnv.ChessEnv()
+env = chessEnv.ChessEnv(white=False)
 t = env.reset()
 print(t)
 tmp_path = "logs"
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
-model = sb3.PPO("MlpPolicy", env, verbose=1)
+model = sb3.PPO("MlpPolicy", env, verbose=1, n_steps=2)
 model.set_logger(new_logger)
+# print(model.env.num_envs)
+# sys.exit()
 # print(model.action_space, "model actions space")
 # print(model.observation_space, "model obs space")
-for i in range(100):
-    print(model.action_space.sample())
+# for i in range(100):
+#     print(model.action_space.sample())
 
 
 # print(model.observation_space.shape, "shapes models")
 
-model.learn(total_timesteps=10, progress_bar=True)
+model.learn(total_timesteps=100000, progress_bar=True, log_interval=5)
+model.save("models")
 print("done train")
 times = []
 for i in range(10):
