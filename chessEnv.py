@@ -1,4 +1,3 @@
-import enum
 import gym
 from gym import spaces
 import chess
@@ -13,6 +12,8 @@ import socketserver
 import webbrowser
 import threading
 import requests
+import numpy as np
+from stockfish import Stockfish
 
 
 class HTMLServer:
@@ -68,7 +69,7 @@ class HTMLServer:
         self.httpd.shutdown()
     def update(self, board):
         self.board = board
-        self.httpd.html_content = self.strBuild(chess.svg.board(board)) #._repr_svg() works too
+        self.httpd.html_content = self.strBuild(board) #._repr_svg() works too
         # self.driver.refresh()
 
 
@@ -85,7 +86,73 @@ def display_board(board):
 #     print(i)
 # print(chess.svg.board(b, size=350))
 # time.sleep(100)
+
 def makeActions():
+    moves = []
+    for i in range(-2,3):
+        for j in range(-2,3):
+            if i==0 and j==0:
+                pass
+            else:
+                moves.append((i,j))
+    
+    for i in range(-7,8):
+        if i ==0:
+            pass
+        else:
+            if (0,i) in moves:
+                pass
+            else:
+                moves.append((0,i))
+            if (i,0) in moves:
+                pass
+            else:
+                moves.append((i,0))
+    for i in range(-7,8):
+        for j in range(-7,8):
+            if abs(i)==abs(j):
+                if i==0:
+                    pass
+                else:
+                    if (i,j) in moves:
+                        pass
+                    else:
+                        moves.append((i,j))
+    print(len(moves))
+    f = ["a","b","c","d","e","f","g","h"]
+    f1 = {"a":1,"b":2,"c":3,"d":4,"e":5,"f":6,"g":7,"h":8}
+    f2 = {1:"a",2:"b",3:"c",4:"d",5:"e",6:"f",7:"g",8:"h"}
+    n = ["1","2","3","4","5","6","7","8"]
+    n1 = [1,2,3,4,5,6,7,8]
+    ans = []
+    ansDict = {}
+    tiles = []
+    for i in f:
+        for j in n:
+            tiles.append(i+j)
+    for pos in tiles:
+        tempMoves = []
+        xcurr = f1[pos[0]]
+        ycurr = int(pos[1])
+        for move in moves:
+            xtemp = xcurr + move[0]
+            ytemp = ycurr + move[1]
+            if xtemp>=1 and xtemp<=8 and ytemp>=1 and ytemp<=8:
+                stemp = f2[xtemp] + str(ytemp)
+                stemp = pos+stemp
+                if stemp in tempMoves:
+                    print("wonder how this slipped through")
+                else:
+                    tempMoves.append(stemp)
+        ans = ans + tempMoves
+    # print(len(ans))
+    for i,j in enumerate(ans):
+        ansDict[j] = i
+
+    return ans, ansDict
+
+
+def makeActionsOLD():
     ans = []
     ansDict = {}
     tiles = []
@@ -100,22 +167,42 @@ def makeActions():
     for i,j in enumerate(ans):
         ansDict[j] = i
     
-    return ans, ansDict
+    return np.array(ans), ansDict
 class ChessEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
-    def __init__(self, fen=None):
+    def __init__(self, fen=None, white=True):
         super(ChessEnv, self).__init__()
         self.board = chess.Board(fen=fen) if fen else chess.Board()
         self.html_server = HTMLServer(board=self.board)
         self.html_server.start()
+        self.stockfish = Stockfish(path="stockfish_15.1/stockfish.exe", depth=15)
+        self.stockfish.update_engine_parameters({"Hash":32768, "UCI_Elo":3000, "Threads":8})
+        self.stockfish.set_fen_position(self.board.fen())
+        if white:
+            self.white=True
+            self.black=False
+        else:
+            self.black=True
+            self.white=False
+        self.moves, self.movesDict = makeActions()
+        spaceBuild = []
+        for i in range(64):
+            spaceBuild.append(13)
+       
+        self.observation_space = spaces.MultiDiscrete(spaceBuild)
         
-        pass
+        self.action_space = spaces.Discrete(len(self.moves))
+        self.stepcnt=0
+        self.stockfishThink = 10
+        self.stepsBeyondTerm = None
 
     def reset(self, fen=None):
         self.board = chess.Board(fen=fen) if fen else chess.Board()
         self.html_server.update(chess.svg.board(board=self.board))
-        pass
+        self.stepcnt=0
+        return fenArr(self.board.fen())
+        
     # chess.svg??
     def render(self):
         self.html_server.driver.refresh()
@@ -123,6 +210,106 @@ class ChessEnv(gym.Env):
 
     # push uci for now for discrete action space... need to thnik if I want pgn or uci for final pipeline
     def step(self, action):
+        self.stepcnt = self.stepcnt +1
+        #print("new step",self.stepcnt)
+        obs = fenArr(self.board.fen())
+        done = False
+        info = {}
+        reward = 1
+        # stockfish white
+        if self.white:
+            
+            
+            self.board.push_san(self.stockfishMove())
+         
+
+            if self.board.is_checkmate():
+                reward = -10000
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            elif self.board.is_check():
+                reward = -5000
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            
+            m = chess.Move.from_uci(self.moves[action])
+            # mm=self.board.legal_moves.__iter__()
+            # m = next(mm)
+            if m in self.board.legal_moves:
+
+                self.board.push(m)
+                reward = 100+reward
+            else:
+                done = True
+                reward = -100000
+                return obs, reward, done, info
+            if self.board.is_checkmate():
+                reward = 10000+reward
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            elif self.board.is_check():
+                reward = 5000+reward
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            else:
+                temp = self.board.pop()
+                if self.board.is_capture(temp):
+                    reward = 500+reward
+                self.board.push(temp)
+
+
+        if self.black:
+            if self.board.is_checkmate():
+                reward = -10000
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            elif self.board.is_check():
+                reward = -5000
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            
+            
+            m = chess.Move.from_uci(self.moves[action])
+            if m in self.board.legal_moves:
+
+                self.board.push(m)
+                reward = 100+reward
+            else:
+                done = True
+                reward = -100000
+                return obs, reward, done, info
+            
+            if self.board.is_checkmate():
+                reward = 10000+reward
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            elif self.board.is_check():
+                reward = 5000+reward
+                done = True
+                obs = fenArr(self.board.fen())
+                return obs, reward, done, info
+            else:
+                temp = self.board.pop()
+                if self.board.is_capture(temp):
+                    reward = 500+reward
+                self.board.push(temp)
+            
+            self.board.push_san(self.stockfishMove())
+        obs=fenArr(self.board.fen())
+        return obs, reward, done, info
+            
+    def stockfishMove(self):
+        self.stockfish.set_fen_position(self.board.fen())
+        return self.stockfish.get_best_move(self.stockfishThink)
+
+    def stepOLD(self, action):
         obs = None
         #low reward for time, trying to be on the attack
         reward = 10
@@ -153,7 +340,7 @@ class ChessEnv(gym.Env):
         else:
             temp = self.board.pop()
             if self.board.is_capture(temp):
-                reward = 1000
+                reward = 500
             self.board.push_uci(action)
         obs = fenArr(self.board.fen())
 
@@ -164,7 +351,7 @@ class ChessEnv(gym.Env):
 
         
         return obs, reward, done, info
-pieces = {"p":1, "r":2, "b":3, "n":4, "q":5, "k":6, "P":7, "R":8, "B":9, "N":10, "Q":11, "K":12} 
+pieces = {" ":0, "p":1, "r":2, "b":3, "n":4, "q":5, "k":6, "P":7, "R":8, "B":9, "N":10, "Q":11, "K":12} 
 def fenArr(fen:str):
     lines = fen.split(" ")
     lines = lines[0]
@@ -178,4 +365,6 @@ def fenArr(fen:str):
                     ans.append(0)
             else:
                 ans.append(pieces[c])
-    return ans
+    # print(ans)
+    # print(len(ans))
+    return np.array(ans)

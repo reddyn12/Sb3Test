@@ -4,18 +4,26 @@ import gym
 import sys
 import os
 import time
+from stable_baselines3.common.logger import configure
 
 
 env = gym.make("CartPole-v1")
-env.reset()
+t = env.reset()
+# print(env.observation_space)
+# print(env.action_space)
+# print(t)
+# sys.exit()
+tmp_path = "logs"
+new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
 model = sb3.PPO("MlpPolicy", env, verbose=1)
+model.set_logger(new_logger)
 # .194 - 10
 # .197 - 100
 # .237 - 1000
 # 1.250 - 10000
 # 3.488 - 100000
-model.learn(1000)
+model.learn(100000)
 times = []
 for i in range(100):
     obs = env.reset()
