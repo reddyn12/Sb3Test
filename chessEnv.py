@@ -240,10 +240,10 @@ class ChessEnv(gym.Env):
             if m in self.board.legal_moves:
 
                 self.board.push(m)
-                reward = 100+reward
+                reward = 200+reward
             else:
                 done = True
-                reward = -100000
+                reward = -100
                 return self.state, reward, done, info
             if self.board.is_checkmate():
                 reward = 10000+reward
@@ -279,10 +279,10 @@ class ChessEnv(gym.Env):
             if m in self.board.legal_moves:
 
                 self.board.push(m)
-                reward = 100+reward
+                reward = 200+reward
             else:
                 done = True
-                reward = -100000
+                reward = -100
                 return self.state, reward, done, info
             
             if self.board.is_checkmate():
