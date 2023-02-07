@@ -13,7 +13,7 @@ t = env.reset()
 print(t)
 tmp_path = "logs"
 # new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
-model = sb3.PPO("MlpPolicy", env, verbose=1, n_steps=10, tensorboard_log="logs", batch_size=10)
+model = sb3.PPO("MlpPolicy", env, verbose=1, n_steps=64, tensorboard_log="logs", batch_size=64)
 # model.set_logger(new_logger)
 # print(model.env.num_envs)
 # sys.exit()
