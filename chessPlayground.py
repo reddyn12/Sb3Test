@@ -7,7 +7,7 @@ import sys
 import os
 import time
 import chessEnv
-env = chessEnv.ChessEnv(white=False)
+env = chessEnv.ChessEnv(white=True)
 model = sb3.PPO.load("modelsV2",env=env)
 
 
@@ -20,8 +20,9 @@ for i in range(20):
     while not done:
         time.sleep(1)
         env.render()
-        action, states = model.predict(obs)
-        print(states)
+        action, states = model.predict(obs, deterministic=True)
+        print(action)
+        print(env.moves[action])
         # print(action)
         obs, reward, done, info = env.step(action)
         # print(obs)
